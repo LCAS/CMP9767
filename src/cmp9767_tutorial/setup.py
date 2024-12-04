@@ -26,7 +26,10 @@ setup(
             'mover = cmp9767_tutorial.mover:main',
             'move_square = cmp9767_tutorial.move_square:main',
             'move_circle = cmp9767_tutorial.move_circle:main',
+            'image_projection_1 = cmp9767_tutorial.image_projection_1:main',
+            'image_projection_2 = cmp9767_tutorial.image_projection_2:main',
             'detector_basic = cmp9767_tutorial.detector_basic:main',
+            'detector_3d = cmp9767_tutorial.detector_3d:main',
             'tf_listener = cmp9767_tutorial.tf_listener:main',            
             'demo_inspection = cmp9767_tutorial.demo_inspection:main'
         ],
