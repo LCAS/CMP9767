@@ -3,6 +3,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy import qos
+import math
 
 # OpenCV
 import cv2
@@ -19,24 +20,19 @@ from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 
 class Detector3D(Node):
-    # use real robot?
+    # use the real robot?
     real_robot = False
 
     ccamera_model = None
     dcamera_model = None
     image_depth_ros = None
+    # aspect ratio between the color and depth cameras
+    # calculated as (color_horizontal_FOV/color_width) / (depth_horizontal_FOV/depth_width)
+    # in camera_info callbacks
+    color2depth_aspect = None
 
     min_area_size = 100
     global_frame = 'odom' # change to 'map' if using maps
-
-    # aspect ratio between color and depth cameras
-    # calculated as (color_horizontal_FOV/color_width) / (depth_horizontal_FOV/depth_width)
-    color2depth_aspect = 1.0 # simulated camera
-    camera_frame = 'depth_link' # for simulated robot
-
-    if real_robot:
-        color2depth_aspect = (71.0/640) / (67.9/400) # real camera
-        camera_frame = 'camera_link' # for simulated robot
 
     visualisation = True
 
@@ -49,12 +45,14 @@ class Detector3D(Node):
         dcamera_info_topic = '/limo/depth_camera_link/depth/camera_info'
         cimage_topic = '/limo/depth_camera_link/image_raw'
         dimage_topic = '/limo/depth_camera_link/depth/image_raw'
+        self.camera_frame = 'depth_link' 
 
         if self.real_robot:
             ccamera_info_topic = '/camera/color/camera_info'
             dcamera_info_topic = '/camera/depth/camera_info'
             cimage_topic = '/camera/color/image_raw'
             dimage_topic = '/camera/depth/image_raw'
+            self.camera_frame = 'camera_color_optical_frame'
 
         self.ccamera_info_sub = self.create_subscription(CameraInfo, ccamera_info_topic,
                                                 self.ccamera_info_callback, qos_profile=qos.qos_profile_sensor_data)
@@ -74,6 +72,11 @@ class Detector3D(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
+    def color2depth_calc(self):
+        if self.color2depth_aspect is None and self.ccamera_model and self.dcamera_model:
+            self.color2depth_aspect = (math.atan2(self.ccamera_model.width, 2 * self.ccamera_model.fx()) / self.ccamera_model.width) \
+                / (math.atan2(self.dcamera_model.width, 2 * self.dcamera_model.fx()) / self.dcamera_model.width)
+
     def image2camera_tf(self, image_coords, image_color, image_depth):
         # transform" from color to depth coordinates
         depth_coords = np.array(image_depth.shape[:2])/2 + (np.array(image_coords) - np.array(image_color.shape[:2])/2)*self.color2depth_aspect
@@ -90,25 +93,27 @@ class Detector3D(Node):
     def ccamera_info_callback(self, data):
         if self.ccamera_model is None:
             self.ccamera_model = image_geometry.PinholeCameraModel()
-        self.ccamera_model.fromCameraInfo(data)
+            self.ccamera_model.fromCameraInfo(data)
+            self.color2depth_calc()
 
     def dcamera_info_callback(self, data):
         if self.dcamera_model is None:
             self.dcamera_model = image_geometry.PinholeCameraModel()
-        self.dcamera_model.fromCameraInfo(data)
+            self.dcamera_model.fromCameraInfo(data)
+            self.color2depth_calc()
 
     def image_depth_callback(self, data):
         self.image_depth_ros = data
 
     def image_color_callback(self, data):
-        # wait for camera models and depth image to arrive
-        if self.ccamera_model is None or self.dcamera_model is None or self.image_depth_ros is None:
+        # wait for the first camera models and depth image to arrive
+        if self.color2depth_aspect is None and self.image_depth_ros is None:
             return
         
         # covert image to open_cv
         self.image_color = self.bridge.imgmsg_to_cv2(data, "bgr8")
         self.image_depth = self.bridge.imgmsg_to_cv2(self.image_depth_ros, "32FC1")
-        # real robot depth camera returns mm rather than m: normalise
+        # the real robot depth camera returns values in mm rather than m (ROS standard): normalise
         if self.real_robot:
             self.image_depth /= 1000.0
 
@@ -137,7 +142,7 @@ class Detector3D(Node):
                                                 self.tf_buffer.lookup_transform(self.global_frame, self.camera_frame, rclpy.time.Time())) 
 
                 # publish so we can see that in rviz
-                self.object_location_pub.publish(PoseStamped(header=Header(frame_id=self.camera_frame),
+                self.object_location_pub.publish(PoseStamped(header=Header(frame_id=self.global_frame),
                                               pose=global_pose))        
 
                 print(f'--- object id {num} ---')
@@ -151,8 +156,9 @@ class Detector3D(Node):
 
         if self.visualisation:
             #resize and adjust for visualisation
-            # image_color = cv2.resize(image_color, (0,0), fx=0.5, fy=0.5)
             self.image_depth *= 1.0/10.0 # scale for visualisation (max range 10.0 m)
+            self.image_color = cv2.resize(self.image_color, (0,0), fx=0.5, fy=0.5)
+            self.image_depth = cv2.resize(self.image_depth, (0,0), fx=0.5, fy=0.5)
             cv2.imshow("image color", self.image_color)
             cv2.imshow("image depth", self.image_depth)
             cv2.waitKey(1)
