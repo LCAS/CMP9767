@@ -41,6 +41,8 @@ def main():
         [-1.56, 0.75, 0.0, 0.0, -0.81, 0.58],
         [-4.8, 0.58, 0.0, 0.0, -0.2, 0.97],
     ]
+                        ##[-0.84331, 0.98205, -8.60213e-06, 9.57506e-07, -0.0543286, 0.998523], first way point
+
 
     # Set our demo's initial pose
     initial_pose = PoseStamped()
