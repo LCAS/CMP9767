@@ -9,3 +9,6 @@ using this command to run rqt gui
         got to Plugins/Configuration/Dynamic Reconfigure, find the local costmap to adjust its parameters.
         Find the parameter for inflation_radius in the inflation_layer, change the value from 0.1 to 0.25. 
 
+a saved map for my_world world is saved in maps folder as my_map 
+    it has the map of this folder in addition to the red boxes.
+    
