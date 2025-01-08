@@ -1,8 +1,15 @@
 using this command to run the world in gazebo
     ros2 launch limo_gazebosim limo_gazebo_diff.launch.py world:=src/cmp9767_tutorial/worlds/myworld.world
 
-using this command to run navigation package 
+using this command to run navigation package
+    1. for running the defulat map
     ros2 launch limo_navigation limo_navigation.launch.py
+
+    2. for running the my map
+    ros2 launch limo_navigation limo_navigation.launch.py map:=src/cmp9767_tutorial/maps/my_map.yaml use_sim_time:=true
+
+    3. for running my map and my parameters
+    ros2 launch limo_navigation limo_navigation.launch.py map:=src/cmp9767_tutorial/maps/my_map.yaml use_sim_time:=true params_file:=src/cmp9767_tutorial/params/nav2_params.yaml
 
 using this command to run rqt gui
     ros2 run rqt_gui rqt_gui
