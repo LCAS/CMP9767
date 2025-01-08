@@ -32,7 +32,8 @@ setup(
             'detector_3d = cmp9767_tutorial.detector_3d:main',
             'counter_3d = cmp9767_tutorial.counter_3d:main',
             'tf_listener = cmp9767_tutorial.tf_listener:main',            
-            'demo_inspection = cmp9767_tutorial.demo_inspection:main'
+            'demo_inspection1 = cmp9767_tutorial.demo_inspection1:main',
+            'demo_inspection2 = cmp9767_tutorial.demo_inspection2:main'
         ],
     },
 )
