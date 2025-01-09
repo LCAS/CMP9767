@@ -7,7 +7,7 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import PoseStamped, PoseArray
 
 class Counter3D(Node):
-    detection_threshold = 0.5 # in meters                                                     #changed value
+    detection_threshold = 1.0 # in meters                                                     #changed value
 
     def __init__(self):      
         super().__init__('counter_3d')
