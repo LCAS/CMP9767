@@ -18,7 +18,7 @@ ros2 launch limo_navigation limo_navigation.launch.py
 ```bash
 ros2 launch limo_navigation limo_navigation.launch.py map:=src/cmp9767_tutorial/maps/my_map.yaml use_sim_time:=true
 ```
-## 3.Building and Running Python Code (Run this before any Python files!)
+## 3.Building and Running Python Code (Run this before any Python files)
 
 ### 3.1 Build the Robot Software
 ```bash
