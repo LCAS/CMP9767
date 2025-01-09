@@ -1,16 +1,16 @@
 <?xml version='1.0'?>
 <sdf version='1.7'>
-  <model name='unit_box'>
+  <model name='red_box'>
     <link name='link'>
       <inertial>
-        <mass>1</mass>
+        <mass>0.00143404</mass>
         <inertia>
-          <ixx>0.166667</ixx>
+          <ixx>3.23e-06</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.166667</iyy>
+          <iyy>2.96e-06</iyy>
           <iyz>0</iyz>
-          <izz>0.166667</izz>
+          <izz>2.96e-06</izz>
         </inertia>
         <pose>0 0 0 0 -0 0</pose>
       </inertial>
@@ -22,7 +22,7 @@
       <visual name='visual'>
         <geometry>
           <box>
-            <size>0.401553 0.346318 0.325516</size>
+            <size>0.15 0.15 0.15</size>
           </box>
         </geometry>
         <material>
@@ -33,8 +33,8 @@
           <shader type='pixel'>
             <normal_map>__default__</normal_map>
           </shader>
-          <ambient>1 0 0 1</ambient>
-          <diffuse>1 0 0 1</diffuse>
+          <ambient>0 1 0 1</ambient>
+          <diffuse>0 1 0 1</diffuse>
           <specular>0.1 0.1 0.1 1</specular>
           <emissive>0 0 0 1</emissive>
         </material>
@@ -48,7 +48,7 @@
         <pose>0 0 0 0 -0 0</pose>
         <geometry>
           <box>
-            <size>0.401553 0.346318 0.325516</size>
+            <size>0.15 0.15 0.15</size>
           </box>
         </geometry>
         <surface>
