@@ -119,15 +119,21 @@ class Detector3D(Node):
 
         # detect a color blob in the color image (here it is bright red)
         # provide the right values, or even better do it in HSV
-        image_mask = cv2.inRange(self.image_color, (0, 0, 80), (50, 50, 255))
+        mask_Red = cv2.inRange(self.image_color, (0, 0, 100), (50, 50, 255))                                                         #changes made 
+        mask_Blue= cv2.inRange(self.image_color, (100, 0, 0), (255, 50, 50))
+        mask_Green = cv2.inRange(self.image_color, (0, 100, 0), (50, 255, 50))
+
+
 
         # finding all separate image regions in the binary image, using connected components algorithm
-        object_contours, _ = cv2.findContours( image_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        object_Red, _ = cv2.findContours( mask_Red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)                                          #change made 
+        object_Blue, _ = cv2.findContours( mask_Blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        object_Green, _ = cv2.findContours( mask_Green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         # iterate through all detected objects/contours
         # calculate their image coordinates
         # and then project from image to global coordinates
-        for num, cnt in enumerate(object_contours):
+        for num, cnt in enumerate(object_Red): # change made 
             area = cv2.contourArea(cnt)
             # detect only large objects
             if area > self.min_area_size:
@@ -145,10 +151,56 @@ class Detector3D(Node):
                 self.object_location_pub.publish(PoseStamped(header=Header(frame_id=self.global_frame),
                                               pose=global_pose))        
 
-                print(f'--- object id {num} ---')
+                print(f'--- object id {num} ---','colur: red')
                 print('image coords: ', image_coords)
                 print('camera coords: ', camera_pose.position)
                 print('global coords: ', global_pose.position)
+
+        for num, cnt in enumerate(object_Blue):                                                                                    # change made
+            area = cv2.contourArea(cnt)
+            # detect only large objects
+            if area > self.min_area_size:
+                cmoms = cv2.moments(cnt)
+                # calculate the y,x centroid
+                image_coords = (cmoms["m01"] / cmoms["m00"], cmoms["m10"] / cmoms["m00"])
+                # transform from image to camera coordinates
+                camera_pose = self.image2camera_tf(image_coords, self.image_color, self.image_depth)
+
+                # transform from the camera to global (odom or map) coordinates
+                global_pose = do_transform_pose(camera_pose, 
+                                                self.tf_buffer.lookup_transform(self.global_frame, self.camera_frame, rclpy.time.Time())) 
+
+                # publish so we can see that in rviz
+                self.object_location_pub.publish(PoseStamped(header=Header(frame_id=self.global_frame),
+                                              pose=global_pose))        
+
+                print(f'--- object id {num} ---', 'colur: blue')
+                print('image coords: ', image_coords)
+                print('camera coords: ', camera_pose.position)
+                print('global coords: ', global_pose.position)       
+
+        for num, cnt in enumerate(object_Green):                                                                                    # change made 
+            area = cv2.contourArea(cnt)
+            # detect only large objects
+            if area > self.min_area_size:
+                cmoms = cv2.moments(cnt)
+                # calculate the y,x centroid
+                image_coords = (cmoms["m01"] / cmoms["m00"], cmoms["m10"] / cmoms["m00"])
+                # transform from image to camera coordinates
+                camera_pose = self.image2camera_tf(image_coords, self.image_color, self.image_depth)
+
+                # transform from the camera to global (odom or map) coordinates
+                global_pose = do_transform_pose(camera_pose, 
+                                                self.tf_buffer.lookup_transform(self.global_frame, self.camera_frame, rclpy.time.Time())) 
+
+                # publish so we can see that in rviz
+                self.object_location_pub.publish(PoseStamped(header=Header(frame_id=self.global_frame),
+                                              pose=global_pose))        
+
+                print(f'--- object id {num} ---','colur: green')
+                print('image coords: ', image_coords)
+                print('camera coords: ', camera_pose.position)
+                print('global coords: ', global_pose.position)          
 
                 if self.visualisation:
                     # draw circles
