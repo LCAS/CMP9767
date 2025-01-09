@@ -34,7 +34,7 @@ class Detector3D(Node):
     min_area_size = 100
     global_frame = 'odom' # change to 'map' if using maps
 
-    visualisation = False
+    visualisation = True
 
     def __init__(self):    
         super().__init__('Detector3D')
