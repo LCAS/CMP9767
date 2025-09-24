@@ -11,9 +11,10 @@ function add_config_if_not_exist {
 
 add_config_if_not_exist "source /opt/ros/humble/setup.bash"
 add_config_if_not_exist "source /opt/ros/lcas/install/setup.bash"
-add_config_if_not_exist "alias rviz_sensors='rviz2 -d /opt/ros/lcas/install/limo_description/share/limo_description/rviz/model_sensors_real.rviz'"
-add_config_if_not_exist "alias tidybot_sim='ros2 launch uol_tidybot tidybot.launch.py'"
 
+# you may add some aliases here
+#add_config_if_not_exist "alias rviz_sensors='rviz2 -d /opt/ros/lcas/install/limo_description/share/limo_description/rviz/model_sensors_real.rviz'"
+#add_config_if_not_exist "alias tidybot_sim='ros2 launch uol_tidybot tidybot.launch.py'"
 
 source /opt/ros/humble/setup.bash
 source /opt/ros/lcas/install/setup.bash

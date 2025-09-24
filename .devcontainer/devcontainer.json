@@ -4,7 +4,7 @@
 	"name": "L-CAS Humble Robotics Teaching Devcontainer",
 	// Use the below image to not build locally (pushed by GitHub Action)
 	// disable the "build" section below in this case
-	// "image": "lcas.lincoln.ac.uk/devcontainer/lcas/rob2002:cuda-opengl-main",
+	//"image": "lcas.lincoln.ac.uk/devcontainer/lcas/cmp9767",
 	"build": {
 		"dockerfile": "./Dockerfile",
 		"args": {
