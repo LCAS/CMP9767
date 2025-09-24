@@ -7,17 +7,17 @@ This repository (LCAS/CMP9767) serves as the **image builder repository** for cr
 ```
 ├── src/                          # Source packages to be included in the container
 │   └── cmp9767_tutorial/         # Course-specific ROS2 packages
+        ├── config/               # Configuration files
+        ├── maps/                 # Map files for navigation
+        ├── params/               # Parameter files
+        └── worlds/               # Simulation world files
 ├── .devcontainer/                # Container build configuration
 │   ├── devcontainer.json         # Dev container settings for this repo
 │   ├── Dockerfile                # Multi-stage build instructions
 │   └── post-create.sh            # Container initialization script
-├── .github/workflows/            # Automated build pipelines
-│   ├── container-build.yml       # Main image build workflow
-│   └── dev-container.yml         # CI validation workflow  
-├── config/                       # Configuration files
-├── maps/                         # Map files for navigation
-├── params/                       # Parameter files
-└── worlds/                       # Simulation world files
+└── .github/workflows/            # Automated build pipelines
+    ├── container-build.yml       # Main image build workflow
+    └── dev-container.yml         # CI validation workflow  
 ```
 
 ## How It Works
