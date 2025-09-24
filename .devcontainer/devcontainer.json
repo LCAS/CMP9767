@@ -1,16 +1,19 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
-	"name": "L-CAS Humble CUDA-OpenGL ROB2002 Devcontainer",
-	"image": "lcas.lincoln.ac.uk/devcontainer/lcas/rob2002:cuda-opengl-deployment",
-	//"build": {
-	//	"dockerfile": "../Dockerfile",
-	//	"args": {
-	//		"BASE_IMAGE": "lcas.lincoln.ac.uk/lcas/ros:jammy-humble-cuda12.2-opengl"
-	//	},
-	//	"context": "../.."
-	//},
+	"name": "L-CAS Humble Robotics Teaching Devcontainer",
+	// Use the below image to not build locally (pushed by GitHub Action)
+	// disable the "build" section below in this case
+	// "image": "lcas.lincoln.ac.uk/devcontainer/lcas/rob2002:cuda-opengl-main",
+	"build": {
+		"dockerfile": "./Dockerfile",
+		"args": {
+			"BASE_IMAGE": "lcas.lincoln.ac.uk/lcas/limo_platform:2.2"
+		},
+		"context": ".."
+	},
 
+	// forward the virtual desktop port
 	"forwardPorts": [5801],
 	"portsAttributes": {
 		"5801": {
