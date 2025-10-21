@@ -43,16 +43,16 @@ def main(args=None):
                 f"  Timestamp: {header.stamp.sec}.{header.stamp.nanosec}")
             
             # Here is an example pose, with a given a frame of reference, e.g., something detected in the camera
-            p1 = geometry_msgs.msg.PoseStamped()
-            p1.header.frame_id = "depth_camera_link"
-            p1.pose.orientation.w = 1.0 # Neutral orientation
-            p1.pose.position.z = 0.5 # half a metre away from the centre of the frame
+            # p1 = geometry_msgs.msg.PoseStamped()
+            # p1.header.frame_id = "depth_camera_link"
+            # p1.pose.orientation.w = 1.0 # Neutral orientation
+            # p1.pose.position.z = 0.5 # half a metre away from the centre of the frame
             # we publish this so we can see it in rviz
-            tf_listener.pose_pub.publish(p1)
+            # tf_listener.pose_pub.publish(p1)
 
             # here we directly transofrm the pose into another pose for the given frame of reference
-            p_in_base = do_transform_pose(p1.pose, transform)
-            print("Position of the object in the new frame of reference: \n", p_in_base)
+            # p_in_base = do_transform_pose(p1.pose, transform)
+            # print("Position of the object in the new frame of reference: \n", p_in_base)
 
         rclpy.spin_once(tf_listener)
 
