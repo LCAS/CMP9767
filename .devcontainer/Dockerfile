@@ -23,9 +23,9 @@ FROM base as devcontainer
 # copy the reduced source tree (only package.xml) from previous stage
 COPY --from=sourcefilter /tmp/src /tmp/src
 RUN rosdep update --rosdistro=${ROS_DISTRO} && apt-get update
-RUN . /opt/ros/lcas/install/setup.sh && rosdep install --from-paths /tmp/src --ignore-src -y && rm -rf /tmp/src && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/src
-# Install rqt_reconfigure (dynamic_reconfigure for ROS2)
-RUN apt-get update && apt-get install -y ros-${ROS_DISTRO}-rqt-reconfigure && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN . /opt/ros/lcas/install/setup.sh && rosdep install --from-paths /tmp/src --ignore-src -y && rm -rf /tmp/src && \
+    apt-get install -y ros-${ROS_DISTRO}-rqt-reconfigure && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/src
 
 
 FROM devcontainer as compiled
