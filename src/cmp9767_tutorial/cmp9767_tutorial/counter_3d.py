@@ -6,22 +6,32 @@ import math
 from std_msgs.msg import Header
 from geometry_msgs.msg import PoseStamped, PoseArray
 
-class Counter3D(Node):
-    detection_threshold = 0.2 # in meters    
+from cmp9767_tutorial.simulation_interfaces import SimulationInterfaces
 
-    def __init__(self):      
-        super().__init__('counter_3d')
-        
-        self.detected_objects = [] # list of all detected objects
+
+class Counter3D(Node):
+    detection_threshold = 0.2  # in meters
+
+    def __init__(self):
+        super().__init__("counter_3d")
+
+        self.interfaces = SimulationInterfaces.from_node(self)
+        self.detected_objects = []  # list of all detected objects
 
         # subscribe to object detector
-        self.subscriber = self.create_subscription(PoseStamped, '/object_location', 
-                                                   self.counter_callback,
-                                                   qos_profile=qos.qos_profile_sensor_data)
-        
+        self.subscriber = self.create_subscription(
+            PoseStamped,
+            self.interfaces.topic("object_location"),
+            self.counter_callback,
+            qos_profile=qos.qos_profile_sensor_data,
+        )
+
         # publish all detected object as an array of poses
-        self.publisher = self.create_publisher(PoseArray, '/object_count_array',
-                                                      qos.qos_profile_parameters)
+        self.publisher = self.create_publisher(
+            PoseArray,
+            self.interfaces.topic("object_count_array"),
+            qos.qos_profile_parameters,
+        )
 
     def counter_callback(self, data):
         new_object = data.pose
@@ -32,24 +42,31 @@ class Counter3D(Node):
             # calculate the distance between the new_object and each in the list
             pos_a = object.position
             pos_b = new_object.position
-            d = math.sqrt((pos_a.x - pos_b.x) ** 2 + (pos_a.y - pos_b.y) ** 2 + (pos_a.z - pos_b.z) ** 2)
-            if d < self.detection_threshold: # found a close neighbour in the already existing list, so this one won't be added
+            d = math.sqrt(
+                (pos_a.x - pos_b.x) ** 2
+                + (pos_a.y - pos_b.y) ** 2
+                + (pos_a.z - pos_b.z) ** 2
+            )
+            if (
+                d < self.detection_threshold
+            ):  # found a close neighbour in the already existing list, so this one won't be added
                 object_exists = True
                 break
 
-        if not object_exists: # new object!
+        if not object_exists:  # new object!
             self.detected_objects.append(new_object)
 
         # publish a PoseArray of object poses for visualisation in rviz
         parray = PoseArray(header=Header(frame_id=data.header.frame_id))
         for object in self.detected_objects:
             parray.poses.append(object)
-        self.publisher.publish(parray)            
+        self.publisher.publish(parray)
 
         # print to the console
-        print(f'total count {len(self.detected_objects)}')
+        print(f"total count {len(self.detected_objects)}")
         for object in self.detected_objects:
             print(object.position)
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -61,5 +78,5 @@ def main(args=None):
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

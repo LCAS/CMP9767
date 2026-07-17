@@ -18,6 +18,9 @@ from copy import deepcopy
 from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 import rclpy
+from rclpy.parameter import Parameter
+
+from cmp9767_tutorial.simulation_interfaces import SimulationInterfaces
 
 """
 Basic stock inspection demo. In this demonstration, the expectation
@@ -29,7 +32,15 @@ collecting information about stock quantity and location.
 def main():
     rclpy.init()
 
-    navigator = BasicNavigator()
+    config_node = rclpy.create_node("demo_inspection_config")
+    interfaces = SimulationInterfaces.from_node(config_node)
+    config_node.declare_parameter("use_sim_time", True)
+    use_sim_time = config_node.get_parameter("use_sim_time").value
+    config_node.destroy_node()
+
+    navigator = BasicNavigator(namespace=interfaces.robot_namespace)
+    navigator.set_parameters([Parameter("use_sim_time", value=use_sim_time)])
+    map_frame = interfaces.frame("map")
 
     # Inspection route, probably read in from a file for a real application
     # from either a map or drive and repeat. (x, y, yaw)
@@ -44,7 +55,7 @@ def main():
 
     # Set our demo's initial pose
     initial_pose = PoseStamped()
-    initial_pose.header.frame_id = 'map'
+    initial_pose.header.frame_id = map_frame
     initial_pose.header.stamp = navigator.get_clock().now().to_msg()
     initial_pose.pose.position.x = 0.0
     initial_pose.pose.position.y = 0.0
@@ -58,7 +69,7 @@ def main():
     # Send our route
     inspection_points = []
     inspection_pose = PoseStamped()
-    inspection_pose.header.frame_id = 'map'
+    inspection_pose.header.frame_id = map_frame
     inspection_pose.header.stamp = navigator.get_clock().now().to_msg()
     for pt in inspection_route:
         inspection_pose.pose.position.x = pt[0]
@@ -78,19 +89,19 @@ def main():
         feedback = navigator.getFeedback()
         if feedback and i % 5 == 0:
             print(
-                'Executing current waypoint: '
+                "Executing current waypoint: "
                 + str(feedback.current_waypoint + 1)
-                + '/'
+                + "/"
                 + str(len(inspection_points))
             )
 
     result = navigator.getResult()
     if result == TaskResult.SUCCEEDED:
-        print('Inspection of shelves complete! Returning to start...')
+        print("Inspection of shelves complete! Returning to start...")
     elif result == TaskResult.CANCELED:
-        print('Inspection of shelving was canceled. Returning to start...')
+        print("Inspection of shelving was canceled. Returning to start...")
     elif result == TaskResult.FAILED:
-        print('Inspection of shelving failed! Returning to start...')
+        print("Inspection of shelving failed! Returning to start...")
 
     # go back to start
     initial_pose.header.stamp = navigator.get_clock().now().to_msg()
@@ -101,5 +112,5 @@ def main():
     exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

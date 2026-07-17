@@ -25,9 +25,11 @@
   <exec_depend>rviz2</exec_depend>
   <exec_depend>limo_description</exec_depend>
   <exec_depend>limo_gazebosim</exec_depend>
-  <exec_depend>limo_navigation</exec_depend>
-  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>nav2_common</exec_depend>
   <exec_depend>nav2_simple_commander</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>message_filters</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>

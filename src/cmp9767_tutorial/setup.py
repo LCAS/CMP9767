@@ -15,7 +15,7 @@ setup(
         (path.join('share', package_name, 'launch'), glob(path.join('launch', '*launch.[pxy][yma]*'))),
         (path.join('share', package_name, 'config'), glob(path.join('config', '*.yaml'))),
         (path.join('share', package_name, 'param'), glob(path.join('param', '*.yaml'))),
-        (path.join('share', package_name, 'urdf'), glob(path.join('urdf', 'tidybot.*'))),
+        (path.join('share', package_name, 'maps'), glob(path.join('maps', '*'))),
         (path.join('share', package_name, 'worlds'), glob(path.join('worlds', '*.world'))),
         (path.join('share', package_name, 'models', 'fire_extinguisher'), glob(path.join('models', 'fire_extinguisher', 'model.*'))),
         (path.join('share', package_name, 'models', 'first_aid_kit'), glob(path.join('models', 'first_aid_kit', 'model.*'))),

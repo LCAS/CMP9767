@@ -10,14 +10,6 @@
             <size>3.0 1.5</size>
           </plane>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -44,14 +36,6 @@
             <size>3.05 0.25 0.05</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -70,14 +54,6 @@
             <size>3.05 0.25 0.05</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -96,14 +72,6 @@
             <size>1.55 0.25 0.05</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -122,14 +90,6 @@
             <size>1.55 0.25 0.05</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -148,14 +108,6 @@
             <size>0.05 0.05 0.25</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -174,14 +126,6 @@
             <size>0.05 0.05 0.25</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -200,14 +144,6 @@
             <size>0.05 0.05 0.25</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -226,14 +162,6 @@
             <size>0.05 0.05 0.25</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -252,14 +180,6 @@
             <size>0.05 0.05 0.25</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
@@ -278,14 +198,6 @@
             <size>0.05 0.05 0.25</size>
           </box>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>100</mu>
-              <mu2>50</mu2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
       <visual name="visual">
         <cast_shadows>false</cast_shadows>
