@@ -1,0 +1,13 @@
+material SimulationTable/Background
+{
+    technique
+    {
+        pass
+        {
+            texture_unit
+            {
+                texture background.png
+            }
+        }
+    }
+}

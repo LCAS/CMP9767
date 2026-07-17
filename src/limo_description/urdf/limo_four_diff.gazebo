@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+
+<robot name="limo_four_diff" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="model_name" default="limo_gazebosim" />
+  <xacro:arg name="sensor_topic_prefix" default="limo_gazebosim" />
+  <xacro:arg name="frame_prefix" default="" />
+  <xacro:property name="model_name" value="$(arg model_name)" />
+  <xacro:property name="sensor_topic_prefix" value="$(arg sensor_topic_prefix)" />
+  <xacro:property name="frame_prefix" value="$(arg frame_prefix)" />
+  <xacro:include filename="$(find limo_description)/urdf/limo_four_diff.xacro" />
+  <xacro:include filename="$(find limo_description)/urdf/limo_gazebo.gazebo" />
+
+  <xacro:limo_wheel_transmission wheel_prefix="front_right" />
+  <xacro:limo_wheel_transmission wheel_prefix="front_left" />
+  <xacro:limo_wheel_transmission wheel_prefix="rear_left" />
+  <xacro:limo_wheel_transmission wheel_prefix="rear_right" />
+  <xacro:limo_fortress_imu sensor_topic_prefix="${sensor_topic_prefix}" frame_prefix="${frame_prefix}" />
+  <xacro:limo_fortress_laser sensor_topic_prefix="${sensor_topic_prefix}" frame_prefix="${frame_prefix}" />
+  <xacro:limo_fortress_rgbd_camera sensor_topic_prefix="${sensor_topic_prefix}" frame_prefix="${frame_prefix}" />
+
+  <gazebo>
+    <plugin filename="ignition-gazebo-diff-drive-system" name="ignition::gazebo::systems::DiffDrive">
+      <left_joint>front_left_wheel</left_joint><left_joint>rear_left_wheel</left_joint>
+      <right_joint>front_right_wheel</right_joint><right_joint>rear_right_wheel</right_joint>
+      <wheel_separation>0.172</wheel_separation><wheel_radius>0.045</wheel_radius>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <odom_topic>/model/${model_name}/odometry</odom_topic>
+      <tf_topic>/model/${model_name}/tf</tf_topic>
+      <frame_id>${frame_prefix}odom</frame_id>
+      <child_frame_id>${frame_prefix}base_link</child_frame_id>
+    </plugin>
+    <plugin filename="ignition-gazebo-joint-state-publisher-system" name="ignition::gazebo::systems::JointStatePublisher">
+      <update_rate>50</update_rate>
+      <joint_name>front_left_wheel</joint_name><joint_name>front_right_wheel</joint_name>
+      <joint_name>rear_left_wheel</joint_name><joint_name>rear_right_wheel</joint_name>
+      <topic>/model/${model_name}/joint_state</topic>
+    </plugin>
+  </gazebo>
+</robot>

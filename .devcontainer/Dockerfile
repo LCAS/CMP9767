@@ -1,6 +1,6 @@
-ARG BASE_IMAGE=lcas.lincoln.ac.uk/lcas/limo_platform:2
+ARG BASE_IMAGE=lcas.lincoln.ac.uk/lcas/limo_platform:2.2
 
-FROM ${BASE_IMAGE} as base
+FROM ${BASE_IMAGE} AS base
 
 # making the standard global variables available for target-specific builds
 ARG TARGETARCH
@@ -8,7 +8,7 @@ ARG TARGETARCH
 USER root
 
 # get the source tree and analyse it for its package.xml only
-FROM base as sourcefilter
+FROM base AS sourcefilter
 RUN mkdir -p /tmp/src/
 COPY ./src/*/package.xml /tmp/src/_workspace/src/_pkgs_xmls
 COPY ./src/*/*/package.xml /tmp/src/_workspace/src/_pkgs_xmls
@@ -19,17 +19,20 @@ COPY ./src/*/*/*/*/package.xml /tmp/src/_workspace/src/_pkgs_xmls
 RUN find /tmp/src -type f \! -name "package.xml" -print | xargs rm -rf
 
 # install all dependencies listed in the package.xml
-FROM base as devcontainer
+FROM base AS devcontainer
 # copy the reduced source tree (only package.xml) from previous stage
 COPY --from=sourcefilter /tmp/src /tmp/src
+COPY .devcontainer/validate_fortress_runtime.sh /usr/local/bin/validate_fortress_runtime.sh
 RUN rosdep update --rosdistro=${ROS_DISTRO} && apt-get update
 RUN apt-get update && \
     . /opt/ros/lcas/install/setup.sh && rosdep install --from-paths /tmp/src --ignore-src -y && \
     apt-get install -y ros-${ROS_DISTRO}-rqt-reconfigure && \
+    chmod +x /usr/local/bin/validate_fortress_runtime.sh && \
+    /usr/local/bin/validate_fortress_runtime.sh && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/src
 
 
-FROM devcontainer as compiled
+FROM devcontainer AS compiled
 
 COPY ./src /opt/ros/lcas/src/workspace/src
 RUN . /opt/ros/lcas/install/setup.sh && \

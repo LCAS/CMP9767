@@ -1,174 +1,235 @@
-# Python libs
-import numpy as np
-import rclpy
-from rclpy.node import Node
-from rclpy import qos
+"""Detect red objects in RGBD data and publish their odometry-frame pose."""
+
 import math
 
-# OpenCV
 import cv2
-
-# ROS libraries
 import image_geometry
-from tf2_ros import Buffer, TransformListener
-from tf2_geometry_msgs import do_transform_pose
+import message_filters
+import numpy as np
+import rclpy
 from cv_bridge import CvBridge
+from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion
+from rclpy import qos
+from rclpy.duration import Duration
+from rclpy.node import Node
+from rclpy.time import Time
+from sensor_msgs.msg import CameraInfo, Image
+from tf2_geometry_msgs import do_transform_pose
+from tf2_ros import Buffer, TransformListener
 
-# ROS Messages
-from std_msgs.msg import Header
-from sensor_msgs.msg import Image, CameraInfo
-from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
+from cmp9767_tutorial.simulation_interfaces import SimulationInterfaces
+
 
 class Detector3D(Node):
-    # use the real robot?
-    real_robot = False
-
-    ccamera_model = None
-    dcamera_model = None
-    image_depth_ros = None
-    # aspect ratio between the color and depth cameras
-    # calculated as (color_horizontal_FOV/color_width) / (depth_horizontal_FOV/depth_width)
-    # in camera_info callbacks
-    color2depth_aspect = None
+    """Project colour detections through synchronized RGBD observations."""
 
     min_area_size = 100
-    global_frame = 'odom' # change to 'map' if using maps
-
     visualisation = True
 
-    def __init__(self):    
-        super().__init__('Detector3D')
+    def __init__(self):
+        super().__init__("detector_3d")
+        self.interfaces = SimulationInterfaces.from_node(self)
+        self.declare_parameter("real_robot", False)
+        self.declare_parameter("global_frame", self.interfaces.frame("odom"))
+        self.real_robot = self.get_parameter("real_robot").value
+        self.global_frame = self.get_parameter("global_frame").value
         self.bridge = CvBridge()
+        self.ccamera_model = None
+        self.dcamera_model = None
+        self.color2depth_aspect = None
 
-        # subscribers and publishers
-        ccamera_info_topic = '/limo/depth_camera_link/camera_info'
-        dcamera_info_topic = '/limo/depth_camera_link/depth/camera_info'
-        cimage_topic = '/limo/depth_camera_link/image_raw'
-        dimage_topic = '/limo/depth_camera_link/depth/image_raw'
-        self.camera_frame = 'depth_link' 
-
+        cinfo_topic = self.interfaces.sensor_topic("depth_camera_link/camera_info")
+        colour_topic = self.interfaces.sensor_topic("depth_camera_link/image_raw")
+        depth_topic = self.interfaces.sensor_topic("depth_camera_link/depth/image_raw")
+        self.camera_frame = self.interfaces.frame("depth_link")
         if self.real_robot:
-            ccamera_info_topic = '/camera/color/camera_info'
-            dcamera_info_topic = '/camera/depth/camera_info'
-            cimage_topic = '/camera/color/image_raw'
-            dimage_topic = '/camera/depth/image_raw'
-            self.camera_frame = 'camera_color_optical_frame'
+            cinfo_topic = "/camera/color/camera_info"
+            depth_info_topic = "/camera/depth/camera_info"
+            colour_topic = "/camera/color/image_raw"
+            depth_topic = "/camera/depth/image_raw"
+            self.camera_frame = "camera_color_optical_frame"
+        else:
+            depth_info_topic = None
 
-        self.ccamera_info_sub = self.create_subscription(CameraInfo, ccamera_info_topic,
-                                                self.ccamera_info_callback, qos_profile=qos.qos_profile_sensor_data)
-        
-        self.dcamera_info_sub = self.create_subscription(CameraInfo, dcamera_info_topic,
-                                                self.dcamera_info_callback, qos_profile=qos.qos_profile_sensor_data)
+        self.create_subscription(
+            CameraInfo,
+            cinfo_topic,
+            self.colour_camera_info_callback,
+            qos_profile=qos.qos_profile_sensor_data,
+        )
+        if depth_info_topic:
+            self.create_subscription(
+                CameraInfo,
+                depth_info_topic,
+                self.depth_camera_info_callback,
+                qos_profile=qos.qos_profile_sensor_data,
+            )
 
-        self.cimage_sub = self.create_subscription(Image, cimage_topic, 
-                                                  self.image_color_callback, qos_profile=qos.qos_profile_sensor_data)
-        
-        self.dimage_sub = self.create_subscription(Image, dimage_topic, 
-                                                  self.image_depth_callback, qos_profile=qos.qos_profile_sensor_data)
-        
-        self.object_location_pub = self.create_publisher(PoseStamped, '/object_location', qos.qos_profile_parameters)
-
-        # tf functionality
+        self.colour_sub = message_filters.Subscriber(
+            self, Image, colour_topic, qos_profile=qos.qos_profile_sensor_data
+        )
+        self.depth_sub = message_filters.Subscriber(
+            self, Image, depth_topic, qos_profile=qos.qos_profile_sensor_data
+        )
+        self.image_sync = message_filters.ApproximateTimeSynchronizer(
+            [self.colour_sub, self.depth_sub], queue_size=10, slop=0.1
+        )
+        self.image_sync.registerCallback(self.image_callback)
+        self.object_location_pub = self.create_publisher(
+            PoseStamped,
+            self.interfaces.topic("object_location"),
+            qos.qos_profile_parameters,
+        )
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-    def color2depth_calc(self):
-        if self.color2depth_aspect is None and self.ccamera_model and self.dcamera_model:
-            self.color2depth_aspect = (math.atan2(self.ccamera_model.width, 2 * self.ccamera_model.fx()) / self.ccamera_model.width) \
-                / (math.atan2(self.dcamera_model.width, 2 * self.dcamera_model.fx()) / self.dcamera_model.width)
-
-    def image2camera_tf(self, image_coords, image_color, image_depth):
-        # transform" from color to depth coordinates
-        depth_coords = np.array(image_depth.shape[:2])/2 + (np.array(image_coords) - np.array(image_color.shape[:2])/2)*self.color2depth_aspect
-        # get the depth reading at the centroid location
-        depth_value = image_depth[int(depth_coords[0]), int(depth_coords[1])] # you might need to do some boundary checking first!
-        # calculate object's 3d location in camera coords
-        camera_coords = np.array(self.ccamera_model.projectPixelTo3dRay((image_coords[1], image_coords[0]))) #project the image coords (x,y) into 3D ray in camera coords 
-        camera_coords /= camera_coords[2] # adjust the resulting vector so that z = 1
-        camera_coords = camera_coords*depth_value # multiply the vector by depth
-        pose = Pose(position=Point(x=camera_coords[0], y=camera_coords[1], z=camera_coords[2]), 
-                    orientation=Quaternion(w=1.0))
-        return pose
-    
-    def ccamera_info_callback(self, data):
-        if self.ccamera_model is None:
-            self.ccamera_model = image_geometry.PinholeCameraModel()
-            self.ccamera_model.fromCameraInfo(data)
-            self.color2depth_calc()
-
-    def dcamera_info_callback(self, data):
-        if self.dcamera_model is None:
-            self.dcamera_model = image_geometry.PinholeCameraModel()
-            self.dcamera_model.fromCameraInfo(data)
-            self.color2depth_calc()
-
-    def image_depth_callback(self, data):
-        self.image_depth_ros = data
-
-    def image_color_callback(self, data):
-        # wait for the first camera models and depth image to arrive
-        if self.color2depth_aspect is None and self.image_depth_ros is None:
+    def colour_camera_info_callback(self, data):
+        """Store the colour camera model and aligned simulation depth model."""
+        if self.ccamera_model is not None:
             return
-        
-        # covert image to open_cv
-        self.image_color = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        self.image_depth = self.bridge.imgmsg_to_cv2(self.image_depth_ros, "32FC1")
-        # the real robot depth camera returns values in mm rather than m (ROS standard): normalise
+        self.ccamera_model = image_geometry.PinholeCameraModel()
+        self.ccamera_model.fromCameraInfo(data)
+        if not self.real_robot:
+            self.dcamera_model = self.ccamera_model
+            self.color2depth_aspect = 1.0
+        else:
+            self.color2depth_calc()
+
+    def depth_camera_info_callback(self, data):
+        """Store the real robot's separate depth camera calibration."""
+        if self.dcamera_model is not None:
+            return
+        self.dcamera_model = image_geometry.PinholeCameraModel()
+        self.dcamera_model.fromCameraInfo(data)
+        self.color2depth_calc()
+
+    def color2depth_calc(self):
+        """Calculate the relative image projection scale for real RGBD sensors."""
+        if (
+            self.color2depth_aspect is None
+            and self.ccamera_model
+            and self.dcamera_model
+        ):
+            colour_scale = math.atan2(
+                self.ccamera_model.width, 2 * self.ccamera_model.fx()
+            )
+            depth_scale = math.atan2(
+                self.dcamera_model.width, 2 * self.dcamera_model.fx()
+            )
+            self.color2depth_aspect = (
+                colour_scale
+                / self.ccamera_model.width
+                / (depth_scale / self.dcamera_model.width)
+            )
+
+    def image2camera_pose(self, image_coords, colour_image, depth_image):
+        """Project a colour-image centroid into the aligned depth camera frame."""
+        depth_coords = (
+            np.array(depth_image.shape[:2]) / 2
+            + (np.array(image_coords) - np.array(colour_image.shape[:2]) / 2)
+            * self.color2depth_aspect
+        )
+        row, column = depth_coords.astype(int)
+        if (
+            row < 0
+            or column < 0
+            or row >= depth_image.shape[0]
+            or column >= depth_image.shape[1]
+        ):
+            return None
+        depth_value = depth_image[row, column]
+        if not np.isfinite(depth_value) or depth_value <= 0.0:
+            return None
+        camera_coords = np.array(
+            self.ccamera_model.projectPixelTo3dRay((image_coords[1], image_coords[0]))
+        )
+        camera_coords /= camera_coords[2]
+        camera_coords *= depth_value
+        return Pose(
+            position=Point(
+                x=float(camera_coords[0]),
+                y=float(camera_coords[1]),
+                z=float(camera_coords[2]),
+            ),
+            orientation=Quaternion(w=1.0),
+        )
+
+    def image_callback(self, colour_data, depth_data):
+        """Process a timestamp-aligned RGBD pair when its TF is available."""
+        if self.color2depth_aspect is None:
+            return
+        stamp = Time.from_msg(colour_data.header.stamp)
+        if not self.tf_buffer.can_transform(
+            self.global_frame, self.camera_frame, stamp, timeout=Duration(seconds=0.1)
+        ):
+            self.get_logger().debug("Waiting for RGBD transform at sensor timestamp.")
+            return
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.global_frame, self.camera_frame, stamp
+            )
+            colour_image = self.bridge.imgmsg_to_cv2(colour_data, "bgr8")
+            depth_image = self.bridge.imgmsg_to_cv2(
+                depth_data, "passthrough" if self.real_robot else "32FC1"
+            )
+        except Exception as error:  # CvBridge and TF errors are transient at startup.
+            self.get_logger().warning(f"RGBD projection skipped: {error}")
+            return
         if self.real_robot:
-            self.image_depth /= 1000.0
+            depth_image = depth_image.astype(np.float32) / 1000.0
 
-        # detect a color blob in the color image (here it is bright red)
-        # provide the right values, or even better do it in HSV
-        image_mask = cv2.inRange(self.image_color, (0, 0, 80), (50, 50, 255))
-
-        # finding all separate image regions in the binary image, using connected components algorithm
-        object_contours, _ = cv2.findContours( image_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        # iterate through all detected objects/contours
-        # calculate their image coordinates
-        # and then project from image to global coordinates
-        for num, cnt in enumerate(object_contours):
-            area = cv2.contourArea(cnt)
-            # detect only large objects
-            if area > self.min_area_size:
-                cmoms = cv2.moments(cnt)
-                # calculate the y,x centroid
-                image_coords = (cmoms["m01"] / cmoms["m00"], cmoms["m10"] / cmoms["m00"])
-                # transform from image to camera coordinates
-                camera_pose = self.image2camera_tf(image_coords, self.image_color, self.image_depth)
-
-                # transform from the camera to global (odom or map) coordinates
-                global_pose = do_transform_pose(camera_pose, 
-                                                self.tf_buffer.lookup_transform(self.global_frame, self.camera_frame, rclpy.time.Time())) 
-
-                # publish so we can see that in rviz
-                self.object_location_pub.publish(PoseStamped(header=Header(frame_id=self.global_frame),
-                                              pose=global_pose))        
-
-                print(f'--- object id {num} ---')
-                print('image coords: ', image_coords)
-                print('camera coords: ', camera_pose.position)
-                print('global coords: ', global_pose.position)
-
-                if self.visualisation:
-                    # draw circles
-                    cv2.circle(self.image_color, (int(image_coords[1]), int(image_coords[0])), 5, 255, -1)
+        image_mask = cv2.inRange(colour_image, (0, 0, 80), (50, 50, 255))
+        object_contours, _ = cv2.findContours(
+            image_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
+        for contour in object_contours:
+            if cv2.contourArea(contour) <= self.min_area_size:
+                continue
+            moments = cv2.moments(contour)
+            if moments["m00"] == 0.0:
+                continue
+            image_coords = (
+                moments["m01"] / moments["m00"],
+                moments["m10"] / moments["m00"],
+            )
+            camera_pose = self.image2camera_pose(
+                image_coords, colour_image, depth_image
+            )
+            if camera_pose is None:
+                continue
+            global_pose = do_transform_pose(camera_pose, transform)
+            message = PoseStamped()
+            message.header.frame_id = self.global_frame
+            message.header.stamp = colour_data.header.stamp
+            message.pose = global_pose
+            self.object_location_pub.publish(message)
+            if self.visualisation:
+                cv2.circle(
+                    colour_image,
+                    (int(image_coords[1]), int(image_coords[0])),
+                    5,
+                    255,
+                    -1,
+                )
 
         if self.visualisation:
-            #resize and adjust for visualisation
-            self.image_depth *= 1.0/10.0 # scale for visualisation (max range 10.0 m)
-            self.image_color = cv2.resize(self.image_color, (0,0), fx=0.5, fy=0.5)
-            self.image_depth = cv2.resize(self.image_depth, (0,0), fx=0.5, fy=0.5)
-            cv2.imshow("image color", self.image_color)
-            cv2.imshow("image depth", self.image_depth)
+            display_depth = cv2.resize(depth_image / 10.0, (0, 0), fx=0.5, fy=0.5)
+            display_colour = cv2.resize(colour_image, (0, 0), fx=0.5, fy=0.5)
+            cv2.imshow("image color", display_colour)
+            cv2.imshow("image depth", display_depth)
             cv2.waitKey(1)
 
-def main(args=None):
-    rclpy.init(args=args)
-    image_projection = Detector3D()
-    rclpy.spin(image_projection)
-    image_projection.destroy_node()
-    rclpy.shutdown()
 
-if __name__ == '__main__':
+def main(args=None):
+    """Run the detector until ROS shuts down."""
+    rclpy.init(args=args)
+    detector = Detector3D()
+    try:
+        rclpy.spin(detector)
+    finally:
+        detector.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == "__main__":
     main()

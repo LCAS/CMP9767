@@ -1,5 +1,5 @@
 <!-- models/fire_extinguisher/model.sdf -->
-<sdf version="1.6">
+<sdf version="1.8">
   <model name="fire_extinguisher"><static>true</static>
     <link name="body"><pose>0 0 0.35 0 0 0</pose>
       <collision name="col">

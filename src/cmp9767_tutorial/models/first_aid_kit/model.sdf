@@ -1,5 +1,5 @@
 <!-- models/first_aid_kit/model.sdf -->
-<sdf version="1.6">
+<sdf version="1.8">
   <model name="first_aid_kit"><static>true</static>
     <link name="box"><pose>0 0 0.07 0 0 0</pose>
       <collision name="col"><geometry><box><size>0.28 0.18 0.14</size></box></geometry></collision>
