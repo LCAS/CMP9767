@@ -1,257 +1,123 @@
+"""Launch the single LIMO teaching simulation on Gazebo Fortress."""
 
- 
 import os
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
-from launch.conditions import IfCondition, UnlessCondition
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from ament_index_python.packages import get_package_share_directory
 
- 
+
+def _append_resource_paths(paths):
+    """Expose installed models to the Fortress resource resolver."""
+    existing = os.environ.get('IGN_GAZEBO_RESOURCE_PATH', '')
+    os.environ['IGN_GAZEBO_RESOURCE_PATH'] = os.pathsep.join(
+        filter(None, [existing, *paths]))
+
+
 def generate_launch_description():
- 
-  # Constants for paths to different files and folders
-  urdf_model_name = 'limo_four_diff.gazebo'
-  world_file_name = 'simple.world'
-  rviz_config_file_name = 'urdf.rviz'
+    urdf_model = LaunchConfiguration('urdf_model')
+    world = LaunchConfiguration('world')
+    use_sim_time = LaunchConfiguration('use_sim_time')
+    use_simulator = LaunchConfiguration('use_simulator')
+    use_robot_state_pub = LaunchConfiguration('use_robot_state_pub')
+    use_rviz = LaunchConfiguration('use_rviz')
+    gui = LaunchConfiguration('gui')
+    headless = LaunchConfiguration('headless')
+    rviz_config_file = LaunchConfiguration('rviz_config_file')
+    robot_name = 'limo_gazebosim'
 
-  robot_name_in_model = 'limo_gazebosim'
+    description_share = get_package_share_directory('limo_description')
+    simulation_share = get_package_share_directory('limo_gazebosim')
+    tutorial_share = get_package_share_directory('cmp9767_tutorial')
+    _append_resource_paths([
+        os.path.join(simulation_share, 'models'), os.path.join(tutorial_share, 'models'),
+        description_share, simulation_share])
+    default_urdf = os.path.join(description_share, 'urdf', 'limo_four_diff.gazebo')
+    default_world = os.path.join(simulation_share, 'worlds', 'simple.world')
+    default_rviz = os.path.join(simulation_share, 'rviz', 'urdf.rviz')
 
-  # Pose where we want to spawn the robot
-  spawn_x_val = '0.0'
-  spawn_y_val = '0.0'
-  spawn_z_val = '0.0'
-  spawn_yaw_val = '0.00'
- 
-  # Define the robots with their unique names and positions
-  robots = [
-    {'name': 'limo1', 'x': '0.0', 'y': '0.0', 'yaw': '0.0'},
-    # {'name': 'limo2', 'x': '1.0', 'y': '0.0', 'yaw': '0.0'}
-  ]
-  ############ You do not need to change anything below this line #############
- 
-  # Set the path to different files and folders.  
-  pkg_gazebo_ros = FindPackageShare(package='gazebo_ros').find('gazebo_ros')   
+    standalone_without_gui = IfCondition(PythonExpression([
+        "'", use_simulator, "'.lower() != 'true' and '", gui, "'.lower() != 'true'"
+    ]))
+    standalone_with_gui = IfCondition(PythonExpression([
+        "'", use_simulator, "'.lower() != 'true' and '", gui, "'.lower() == 'true'"
+    ]))
 
-  default_urdf_model_path = os.path.join(
-    get_package_share_directory('limo_description'), 
-    'urdf',
-    urdf_model_name
-  )
- 
-  world_path = os.path.join(
-    get_package_share_directory('limo_gazebosim'), 
-    'worlds',
-    world_file_name
-  )
+    simulator = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            FindPackageShare('ros_gz_sim').find('ros_gz_sim'), 'launch', 'gz_sim.launch.py')),
+        condition=IfCondition(use_simulator),
+        launch_arguments={'gz_version': '6', 'gz_args': [PythonExpression([
+            "'-r -s --headless-rendering ' if '", headless,
+            "'.lower() == 'true' else '-r '"]), world]}.items())
 
-  gazebo_models_path = os.path.join(
-    get_package_share_directory('limo_gazebosim'), 
-    'models'
-  )
-  # os.environ["GAZEBO_MODEL_PATH"] = gazebo_models_path
-  local_models_path = os.path.join(
-    get_package_share_directory('cmp9767_tutorial'), 
-    'models'
-  )
-  os.environ["GAZEBO_MODEL_PATH"] = os.pathsep.join(filter(None, [gazebo_models_path, local_models_path]))
-
-
-  default_rviz_config_path = os.path.join(
-    get_package_share_directory('limo_gazebosim'), 
-    'rviz',
-    rviz_config_file_name
-  )
-
- 
-  # Launch configuration variables specific to simulation
-  use_sim_time = LaunchConfiguration('use_sim_time', default='true')
-  gui = LaunchConfiguration('gui')
-  headless = LaunchConfiguration('headless')
-  namespace = LaunchConfiguration('namespace')
-  rviz_config_file = LaunchConfiguration('rviz_config_file')
-  urdf_model = LaunchConfiguration('urdf_model')
-  use_namespace = LaunchConfiguration('use_namespace')
-  use_robot_state_pub = LaunchConfiguration('use_robot_state_pub')
-  use_rviz = LaunchConfiguration('use_rviz')
-  use_simulator = LaunchConfiguration('use_simulator')
-  world = LaunchConfiguration('world')
- 
-  remappings = [((namespace, '/tf'), '/tf'),
-                ((namespace, '/tf_static'), '/tf_static'),
-                ('/tf', 'tf'),
-                ('/tf_static', 'tf_static')]
-
-  # Declare the launch arguments  
-  declare_use_sim_time_cmd = DeclareLaunchArgument(
-    name='use_sim_time',
-    default_value='True',
-    description='Use simulation (Gazebo) clock if true')
-
-  declare_use_joint_state_publisher_cmd = DeclareLaunchArgument(
-    name='gui',
-    default_value='False',
-    description='Flag to enable joint_state_publisher_gui')
- 
-  declare_namespace_cmd = DeclareLaunchArgument(
-    name='namespace',
-    default_value='',
-    description='Top-level namespace')
- 
-  declare_use_namespace_cmd = DeclareLaunchArgument(
-    name='use_namespace',
-    default_value='False',
-    description='Whether to apply a namespace to the navigation stack')
- 
-  declare_rviz_config_file_cmd = DeclareLaunchArgument(
-    name='rviz_config_file',
-    default_value=default_rviz_config_path,
-    description='Full path to the RVIZ config file to use')
- 
-  declare_simulator_cmd = DeclareLaunchArgument(
-    name='headless',
-    default_value='False',
-    description='Whether to execute gzclient')
- 
-  declare_urdf_model_path_cmd = DeclareLaunchArgument(
-    name='urdf_model', 
-    default_value=default_urdf_model_path, 
-    description='Absolute path to robot urdf file')
- 
-  declare_use_robot_state_pub_cmd = DeclareLaunchArgument(
-    name='use_robot_state_pub',
-    default_value='True',
-    description='Whether to start the robot state publisher')
- 
-  declare_use_rviz_cmd = DeclareLaunchArgument(
-    name='use_rviz',
-    default_value='False',
-    description='Whether to start RVIZ')
- 
-  declare_use_simulator_cmd = DeclareLaunchArgument(
-    name='use_simulator',
-    default_value='True',
-    description='Whether to start the simulator')
- 
-  declare_world_cmd = DeclareLaunchArgument(
-    name='world',
-    default_value=world_path,
-    description='Full path to the world model file to load')
-  
-  # start_dummy_sensors=Node(
-  #   package='dummy_sensors', 
-  #   node_executable='dummy_joint_states', 
-  #   output='screen')
-
-  # Launch RViz
-  start_rviz_cmd = Node(
-    condition=IfCondition(use_rviz),
-    package='rviz2',
-    executable='rviz2',
-    name='rviz2',
-    output='screen',
-    arguments=['-d', rviz_config_file])
- 
-  # Start Gazebo server
-  start_gazebo_server_cmd = IncludeLaunchDescription(
-    PythonLaunchDescriptionSource(os.path.join(pkg_gazebo_ros, 'launch', 'gzserver.launch.py')),
-    condition=IfCondition(use_simulator),
-    launch_arguments={'world': world}.items())
- 
-  # Start Gazebo client    
-  start_gazebo_client_cmd = IncludeLaunchDescription(
-    PythonLaunchDescriptionSource(os.path.join(pkg_gazebo_ros, 'launch', 'gzclient.launch.py')),
-    condition=IfCondition(PythonExpression([use_simulator, ' and not ', headless])))
-  twist_watchdog = Node(
-    package='limo_gazebosim',
-    executable='twist_watchdog.py',
-    name='twist_watchdog'
-  )
-  
-  ld = LaunchDescription()
-  # Declare the launch options
-  ld.add_action(declare_use_sim_time_cmd)
-  ld.add_action(declare_use_joint_state_publisher_cmd)
-  ld.add_action(declare_namespace_cmd)
-  ld.add_action(declare_use_namespace_cmd)
-  ld.add_action(declare_rviz_config_file_cmd)
-  ld.add_action(declare_simulator_cmd)
-  ld.add_action(declare_urdf_model_path_cmd)
-  ld.add_action(declare_use_robot_state_pub_cmd)  
-  ld.add_action(declare_use_rviz_cmd) 
-  ld.add_action(declare_use_simulator_cmd)
-  ld.add_action(declare_world_cmd)
- 
-  # Add any actions
-  ld.add_action(start_gazebo_server_cmd)
-  ld.add_action(start_gazebo_client_cmd)
-  
-  ld.add_action(start_rviz_cmd)
-  ld.add_action(twist_watchdog)
-  
-  # Launch the robot
-#   remappings = [("/tf", "tf"), ("/tf_static", "tf_static")]
-  for robot in robots:
-    ns = robot['name']
-    
-    remappings = [((ns, '/tf'), '/tf'),
-                ((ns, '/tf_static'), '/tf_static'),
-                ('/tf', 'tf'),
-                ('/tf_static', 'tf_static')]
-    spawn_entity_cmd = Node(
-        package='gazebo_ros', 
-        executable='spawn_entity.py',
-        arguments=['-entity', robot['name'],
-                        '-x', robot['x'],
-                        '-y', robot['y'],
-                        '-z', spawn_z_val,
-                        '-Y', robot['yaw'],
-                        '-topic', 'robot_description',
-                        '-robot_namespace', ns],
+    robot_description = Command([
+        'xacro ', urdf_model, ' model_name:=', robot_name,
+        ' sensor_topic_prefix:=', robot_name, ' frame_prefix:='])
+    robot_state_publisher = Node(
+        package='robot_state_publisher', executable='robot_state_publisher',
+        parameters=[{'robot_description': robot_description, 'use_sim_time': use_sim_time}],
+        condition=IfCondition(use_robot_state_pub), output='screen')
+    joint_state_publisher = Node(
+        package='joint_state_publisher', executable='joint_state_publisher',
+        condition=standalone_without_gui, parameters=[{'use_sim_time': use_sim_time}],
         output='screen')
-        # arguments=['-entity', robot_name_in_model, 
-        #             '-topic', 'robot_description',
-        #                 '-x', spawn_x_val,
-        #                 '-y', spawn_y_val,
-        #                 '-z', spawn_z_val,
-        #                 '-Y', spawn_yaw_val],
-        #                 output='screen')
-        
-    # Subscribe to the joint states of the robot, and publish the 3D pose of each link.    
-    start_robot_state_publisher_cmd = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        namespace=ns,
-        parameters=[{'robot_description': Command(['xacro ', urdf_model]),'use_sim_time': use_sim_time}],
-                remappings=remappings,
-                output='screen'
-        )
-      # Publish the joint states of the robot
-    start_joint_state_publisher_cmd = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        namespace=ns,
-        name='joint_state_publisher',
-        condition=UnlessCondition(gui),
-        parameters=[{'use_sim_time': use_sim_time}],
-                remappings=remappings,
-                output='screen'
-        )
-        
-    
-    # Add actions to the launch description
-    ld.add_action(start_robot_state_publisher_cmd)
-    ld.add_action(start_joint_state_publisher_cmd)
-    ld.add_action(spawn_entity_cmd)
-    
+    joint_state_publisher_gui = Node(
+        package='joint_state_publisher_gui', executable='joint_state_publisher_gui',
+        condition=standalone_with_gui, parameters=[{'use_sim_time': use_sim_time}],
+        output='screen')
 
+    spawn_robot = Node(
+        package='ros_gz_sim', executable='create', condition=IfCondition(use_simulator),
+        arguments=['-name', robot_name, '-topic', 'robot_description',
+                   '-x', '2.0', '-y', '2.0', '-z', '0.0', '-Y', '0.0'], output='screen')
+    bridge_clock = Node(
+        package='ros_gz_bridge', executable='parameter_bridge', condition=IfCondition(use_simulator),
+        arguments=['/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock'], output='screen')
+    bridge_robot = Node(
+        package='ros_gz_bridge', executable='parameter_bridge', condition=IfCondition(use_simulator),
+        arguments=[
+            f'/model/{robot_name}/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist',
+            f'/model/{robot_name}/odometry@nav_msgs/msg/Odometry[ignition.msgs.Odometry',
+            f'/model/{robot_name}/joint_state@sensor_msgs/msg/JointState[ignition.msgs.Model',
+            f'/{robot_name}/scan@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan',
+            f'/{robot_name}/imu@sensor_msgs/msg/Imu[ignition.msgs.IMU',
+            f'/model/{robot_name}/tf@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V',
+            f'/{robot_name}/depth_camera/image@sensor_msgs/msg/Image[ignition.msgs.Image',
+            f'/{robot_name}/depth_camera/depth_image@sensor_msgs/msg/Image[ignition.msgs.Image',
+            f'/{robot_name}/depth_camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo',
+        ],
+        remappings=[
+            (f'/model/{robot_name}/cmd_vel', '/cmd_vel'),
+            (f'/model/{robot_name}/odometry', '/odom'),
+            (f'/model/{robot_name}/joint_state', '/joint_states'),
+            (f'/{robot_name}/scan', '/scan'), (f'/{robot_name}/imu', '/imu'),
+            (f'/model/{robot_name}/tf', '/tf'),
+            (f'/{robot_name}/depth_camera/image', '/limo/depth_camera_link/image_raw'),
+            (f'/{robot_name}/depth_camera/depth_image', '/limo/depth_camera_link/depth/image_raw'),
+            (f'/{robot_name}/depth_camera/camera_info', '/limo/depth_camera_link/camera_info'),
+        ], output='screen')
+    watchdog = Node(
+        package='limo_gazebosim', executable='twist_watchdog.py', name='twist_watchdog',
+        condition=IfCondition(use_simulator))
+    rviz = Node(package='rviz2', executable='rviz2', name='rviz2',
+                condition=IfCondition(use_rviz), arguments=['-d', rviz_config_file], output='screen')
 
-  # Create the launch description and populate
- 
- 
-  
- 
-  return ld
+    return LaunchDescription([
+        DeclareLaunchArgument('use_sim_time', default_value='true'),
+        DeclareLaunchArgument('gui', default_value='false'),
+        DeclareLaunchArgument('headless', default_value='false'),
+        DeclareLaunchArgument('urdf_model', default_value=default_urdf),
+        DeclareLaunchArgument('world', default_value=default_world),
+        DeclareLaunchArgument('rviz_config_file', default_value=default_rviz),
+        DeclareLaunchArgument('use_robot_state_pub', default_value='true'),
+        DeclareLaunchArgument('use_rviz', default_value='false'),
+        DeclareLaunchArgument('use_simulator', default_value='true'),
+        simulator, robot_state_publisher, joint_state_publisher, joint_state_publisher_gui,
+        TimerAction(period=3.0, actions=[spawn_robot, bridge_clock, bridge_robot, watchdog]), rviz,
+    ])

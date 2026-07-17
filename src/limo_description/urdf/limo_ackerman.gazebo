@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<robot name="limo_ackerman" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="model_name" default="limo_gazebosim" />
+  <xacro:arg name="sensor_topic_prefix" default="limo_gazebosim" />
+  <xacro:arg name="frame_prefix" default="" />
+  <xacro:property name="model_name" value="$(arg model_name)" />
+  <xacro:property name="sensor_topic_prefix" value="$(arg sensor_topic_prefix)" />
+  <xacro:property name="frame_prefix" value="$(arg frame_prefix)" />
+  <xacro:include filename="$(find limo_description)/urdf/limo_gazebo.gazebo" />
+
+  <xacro:limo_wheel_transmission wheel_prefix="front_right" />
+  <xacro:limo_wheel_transmission wheel_prefix="front_left" />
+  <xacro:limo_wheel_transmission wheel_prefix="rear_left" />
+  <xacro:limo_wheel_transmission wheel_prefix="rear_right" />
+  <xacro:limo_steering_hinge_transmission wheel_prefix="left_steering_hinge" />
+  <xacro:limo_steering_hinge_transmission wheel_prefix="right_steering_hinge" />
+  <xacro:limo_fortress_imu sensor_topic_prefix="${sensor_topic_prefix}" frame_prefix="${frame_prefix}" />
+  <xacro:limo_fortress_laser sensor_topic_prefix="${sensor_topic_prefix}" frame_prefix="${frame_prefix}" />
+  <xacro:limo_fortress_rgbd_camera sensor_topic_prefix="${sensor_topic_prefix}" frame_prefix="${frame_prefix}" />
+
+  <gazebo>
+    <plugin filename="ignition-gazebo-ackermann-steering-system" name="ignition::gazebo::systems::AckermannSteering">
+      <left_joint>rear_left_wheel</left_joint><right_joint>rear_right_wheel</right_joint>
+      <left_steering_joint>left_steering_hinge_wheel</left_steering_joint>
+      <right_steering_joint>right_steering_hinge_wheel</right_steering_joint>
+      <wheel_base>0.2</wheel_base><wheel_separation>0.172</wheel_separation><wheel_radius>0.045</wheel_radius>
+      <topic>/model/${model_name}/cmd_vel</topic>
+      <odom_topic>/model/${model_name}/odometry</odom_topic>
+      <tf_topic>/model/${model_name}/tf</tf_topic>
+      <frame_id>${frame_prefix}odom</frame_id>
+      <child_frame_id>${frame_prefix}base_link</child_frame_id>
+      <max_velocity>10.0</max_velocity><min_velocity>-10.0</min_velocity>
+    </plugin>
+    <plugin filename="ignition-gazebo-joint-state-publisher-system" name="ignition::gazebo::systems::JointStatePublisher">
+      <update_rate>50</update_rate>
+      <joint_name>front_left_wheel</joint_name><joint_name>front_right_wheel</joint_name>
+      <joint_name>rear_left_wheel</joint_name><joint_name>rear_right_wheel</joint_name>
+      <joint_name>left_steering_hinge_wheel</joint_name><joint_name>right_steering_hinge_wheel</joint_name>
+      <topic>/model/${model_name}/joint_state</topic>
+    </plugin>
+  </gazebo>
+</robot>

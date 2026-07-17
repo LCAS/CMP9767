@@ -42,7 +42,6 @@ class Detector3D(Node):
 
         # subscribers and publishers
         ccamera_info_topic = '/limo/depth_camera_link/camera_info'
-        dcamera_info_topic = '/limo/depth_camera_link/depth/camera_info'
         cimage_topic = '/limo/depth_camera_link/image_raw'
         dimage_topic = '/limo/depth_camera_link/depth/image_raw'
         self.camera_frame = 'depth_link' 
@@ -56,9 +55,12 @@ class Detector3D(Node):
 
         self.ccamera_info_sub = self.create_subscription(CameraInfo, ccamera_info_topic,
                                                 self.ccamera_info_callback, qos_profile=qos.qos_profile_sensor_data)
-        
-        self.dcamera_info_sub = self.create_subscription(CameraInfo, dcamera_info_topic,
-                                                self.dcamera_info_callback, qos_profile=qos.qos_profile_sensor_data)
+        if self.real_robot:
+            self.dcamera_info_sub = self.create_subscription(
+                CameraInfo, dcamera_info_topic, self.dcamera_info_callback,
+                qos_profile=qos.qos_profile_sensor_data)
+        else:
+            self.dcamera_info_sub = None
 
         self.cimage_sub = self.create_subscription(Image, cimage_topic, 
                                                   self.image_color_callback, qos_profile=qos.qos_profile_sensor_data)
@@ -94,7 +96,12 @@ class Detector3D(Node):
         if self.ccamera_model is None:
             self.ccamera_model = image_geometry.PinholeCameraModel()
             self.ccamera_model.fromCameraInfo(data)
-            self.color2depth_calc()
+            if self.real_robot:
+                self.color2depth_calc()
+            else:
+                # Gazebo's RGBD sensor has aligned colour and depth images.
+                self.dcamera_model = self.ccamera_model
+                self.color2depth_aspect = 1.0
 
     def dcamera_info_callback(self, data):
         if self.dcamera_model is None:
@@ -107,7 +114,7 @@ class Detector3D(Node):
 
     def image_color_callback(self, data):
         # wait for the first camera models and depth image to arrive
-        if self.color2depth_aspect is None and self.image_depth_ros is None:
+        if self.color2depth_aspect is None or self.image_depth_ros is None:
             return
         
         # covert image to open_cv

@@ -2,6 +2,9 @@
 
 set -xe
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+WORKSPACE_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
+
 
 function add_config_if_not_exist {
     if ! grep -F -q "$1" $HOME/.bashrc; then
@@ -19,9 +22,13 @@ add_config_if_not_exist "source /opt/ros/lcas/install/setup.bash"
 source /opt/ros/humble/setup.bash
 source /opt/ros/lcas/install/setup.bash
 
+/usr/local/bin/validate_fortress_runtime.sh
+
+cd "$WORKSPACE_DIR"
+
 colcon build --symlink-install --continue-on-error || true
 
-LOCAL_SETUP_FILE=`pwd`/install/setup.bash
+LOCAL_SETUP_FILE="$WORKSPACE_DIR/install/setup.bash"
 add_config_if_not_exist "if [ -r $LOCAL_SETUP_FILE ]; then source $LOCAL_SETUP_FILE; fi"
 
 sleep 10

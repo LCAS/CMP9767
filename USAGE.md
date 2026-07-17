@@ -6,7 +6,9 @@ This repository (LCAS/CMP9767) serves as the **image builder repository** for cr
 
 ```
 ├── src/                          # Source packages to be included in the container
-│   └── cmp9767_tutorial/         # Course-specific ROS2 packages
+│   ├── cmp9767_tutorial/         # Course-specific ROS2 packages
+│   ├── limo_description/         # Repository-owned Fortress robot description overlay
+│   └── limo_gazebosim/           # Repository-owned Fortress simulation overlay
         ├── config/               # Configuration files
         ├── maps/                 # Map files for navigation
         ├── params/               # Parameter files
@@ -21,6 +23,16 @@ This repository (LCAS/CMP9767) serves as the **image builder repository** for cr
 ```
 
 ## How It Works
+
+### Gazebo Fortress ownership
+
+The `lcas/limo_platform:2.2` base image includes the original LIMO packages,
+which target Gazebo Classic. This repository intentionally supplies and builds
+the `limo_description` and `limo_gazebosim` source overlays in `src/`; they are
+the authoritative Gazebo Fortress versions for this image. Keep their ROS and
+Gazebo dependencies in their package manifests. The Dockerfile relies on
+`rosdep` and the pinned base image rather than installing broad ROS--Gazebo
+metapackages directly.
 
 ### 1. Package Development Phase
 
